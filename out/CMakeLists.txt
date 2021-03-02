@@ -18,7 +18,6 @@ add_executable(encode ffmpeg_enc.c)
 
 target_include_directories(encode
     PRIVATE
-
 )
 
 target_link_libraries(encode
@@ -27,11 +26,11 @@ target_link_libraries(encode
     avutil
 )
 
-add_executable(out rtsp_out.cpp)
+# add_executable(out rtsp_out.cpp)
+add_executable(out rtsp_encode_push.cpp)
 
 target_include_directories(out
     PRIVATE
-
 )
 
 target_link_libraries(out
