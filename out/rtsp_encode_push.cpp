@@ -180,9 +180,9 @@ int main(int argc, char *argv[])
     if (!OutVideoStream)
         throw std::runtime_error("Error: fail to allocating output stream");
 
-#if 0    
-    OutVideoStream->time_base = { 1, 25 };
-    mVideoStreamIndex = OutVideoStream->id = mFormatCtx->nb_streams - 1;  //加入到fmt_ctx流
+#if 1
+    OutVideoStream->time_base = {1, 25};
+    mVideoStreamIndex = OutVideoStream->id = mFormatCtx->nb_streams - 1; //加入到fmt_ctx流
 #endif
 
     /* Copy the settings of AVCodecContext */
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
         }
     }
 
-#if 0
+#if 1
     /* Write file header */
     ret = avformat_write_header(mFormatCtx, NULL);
     if (ret < 0)
@@ -234,6 +234,7 @@ int main(int argc, char *argv[])
     if (!fp_out || !fp_YUV)
         throw std::runtime_error("Error: fail to open file");
 
+    int frame_index = 0;
 #endif
 
     while (1)
@@ -262,6 +263,53 @@ int main(int argc, char *argv[])
             /* Handle Encoded Packet Data */
             printf("Write packet %3" PRId64 " (size=%5d)\n", mPacket->pts, mPacket->size);
             fwrite(mPacket->data, 1, mPacket->size, fp_out);
+
+#if 1 //push~~
+            mPacket->stream_index = mVideoStreamIndex;
+            if (mPacket->pts == AV_NOPTS_VALUE)
+            {
+                //Write PTS
+                AVRational time_base1 = mVideoCodecCtx->time_base; // ifmt_ctx->streams[videoindex]->time_base;
+                //Duration between 2 frames (us)
+                int64_t calc_duration = (double)AV_TIME_BASE / av_q2d(mVideoCodecCtx->framerate /*ifmt_ctx->streams[videoindex]->r_frame_rate*/);
+                //Parameters
+                mPacket->pts = (double)(frame_index * calc_duration) / (double)(av_q2d(time_base1) * AV_TIME_BASE);
+                mPacket->dts = mPacket->pts;
+                mPacket->duration = (double)calc_duration / (double)(av_q2d(time_base1) * AV_TIME_BASE);
+            }
+
+            //Important:Delay
+            if (mPacket->stream_index == mVideoStreamIndex)
+            {
+                AVRational time_base = mVideoCodecCtx->time_base; // ifmt_ctx->streams[videoindex]->time_base;
+                AVRational time_base_q = {1, AV_TIME_BASE};
+                int64_t pts_time = av_rescale_q(mPacket->dts, time_base, time_base_q);
+                int64_t now_time = av_gettime() - start_time;
+                if (pts_time > now_time)
+                    av_usleep(pts_time - now_time);
+            }
+
+            /* copy packet */
+            //Convert PTS/DTS
+            mPacket->pts = av_rescale_q_rnd(mPacket->pts, mVideoCodecCtx->time_base, OutVideoStream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            mPacket->dts = av_rescale_q_rnd(mPacket->dts, mVideoCodecCtx->time_base, OutVideoStream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            mPacket->duration = av_rescale_q(mPacket->duration, mVideoCodecCtx->time_base, OutVideoStream->time_base);
+            mPacket->pos = -1;
+            //Print to Screen
+            if (mPacket->stream_index == mVideoStreamIndex)
+            {
+                printf("Send %8d video frames to output URL\n", frame_index);
+                frame_index++;
+            }
+
+            ret = av_interleaved_write_frame(mFormatCtx, mPacket);
+
+            if (ret < 0)
+            {
+                printf("Error muxing packet\n");
+                break;
+            }
+#endif
 
             av_packet_unref(mPacket);
         }
