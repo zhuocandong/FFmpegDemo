@@ -8,33 +8,63 @@ extern "C"
 #include <libavutil/time.h>
 }
 
-static void encode(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *pkt,
-                   FILE *outfile)
+static void PrepareIntputFrame(AVCodecContext *mVideoCodecCtx, AVFrame *mFrame, FILE *infile)
 {
     int ret;
-    /* send the frame to the encoder */
-    if (frame)
-        printf("Send frame %3" PRId64 "\n", frame->pts);
-    ret = avcodec_send_frame(enc_ctx, frame);
+    static int enc_count = 0;
+
+#if 1 //prepare input yuv
+    fflush(stdout);
+    /* make sure the frame data is writable */
+    ret = av_frame_make_writable(mFrame);
     if (ret < 0)
-    {
-        fprintf(stderr, "Error sending a frame for encoding\n");
-        exit(1);
-    }
+        throw std::runtime_error("Error: fail to av_frame_make_writable");
+    /* prepare a dummy image */
+    unsigned char y_data[mVideoCodecCtx->width * mVideoCodecCtx->height];
+    unsigned char u_data[mVideoCodecCtx->width * mVideoCodecCtx->height / 4];
+    unsigned char v_data[mVideoCodecCtx->width * mVideoCodecCtx->height / 4];
+    /* Y */
+    ret = fread(y_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height, infile);
+    if (ret <= 0)
+        throw std::runtime_error("End Of File");
+
+    memcpy(mFrame->data[0], y_data, mVideoCodecCtx->width * mVideoCodecCtx->height);
+
+    /* Cb and Cr */
+    fread(u_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height / 4, infile);
+    memcpy(mFrame->data[1], u_data, mVideoCodecCtx->width * mVideoCodecCtx->height / 4);
+
+    fread(v_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height / 4, infile);
+    memcpy(mFrame->data[2], v_data, mVideoCodecCtx->width * mVideoCodecCtx->height / 4);
+
+    mFrame->pts = enc_count++;
+    /* Now Ready to encode the image */
+    return;
+#endif
+
+#if 0
+    /* send the frame to the encoder */
+    if (mFrame)
+        printf("Send frame %3" PRId64 "\n", mFrame->pts);
+    ret = avcodec_send_frame(mVideoCodecCtx, mFrame);
+    if (ret < 0)
+        throw std::runtime_error("Error sending a frame for encoding\n");
+
     while (ret >= 0)
     {
-        ret = avcodec_receive_packet(enc_ctx, pkt);
+        ret = avcodec_receive_packet(mVideoCodecCtx, mPacket);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            return;
+            break;
         else if (ret < 0)
         {
             fprintf(stderr, "Error during encoding\n");
-            exit(1);
+            break;
         }
-        printf("Write packet %3" PRId64 " (size=%5d)\n", pkt->pts, pkt->size);
-        fwrite(pkt->data, 1, pkt->size, outfile);
-        av_packet_unref(pkt);
+        printf("Write packet %3" PRId64 " (size=%5d)\n", mPacket->pts, mPacket->size);
+        fwrite(mPacket->data, 1, mPacket->size, outfile);
+        av_packet_unref(mPacket);
     }
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -197,79 +227,44 @@ int main(int argc, char *argv[])
     /*================== Encode Frame To Packet And Push Streaming ==================*/
 
 #if 1 // extra
-    FILE *f = fopen("out.h264", "wb");
-    if (!f)
-    {
-        fprintf(stderr, "Could not open %s\n", "out.h264");
-        exit(1);
-    }
+    FILE *fp_out, *fp_YUV;
+    fp_out = fopen("out.h264", "wb");
+    fp_YUV = fopen(input, "rb");
+
+    if (!fp_out || !fp_YUV)
+        throw std::runtime_error("Error: fail to open file");
+
 #endif
 
     while (1)
     {
-        /* encode local yuv file to h264 */
-        FILE *fp_YUV;
-        if ((fp_YUV = fopen(input, "rb")) == NULL) //input YUV filename
-            return 0;
-        for (int i = 0; i < 250 * 7; i++)
+        /* Read from local yuv file */
+        PrepareIntputFrame(mVideoCodecCtx, mFrame, fp_YUV);
+
+        /* send the frame to the encoder */
+        if (mFrame)
+            printf("Send frame %3" PRId64 "\n", mFrame->pts);
+        ret = avcodec_send_frame(mVideoCodecCtx, mFrame);
+        if (ret < 0)
+            throw std::runtime_error("Error sending a frame for encoding\n");
+
+        while (ret >= 0)
         {
-            fflush(stdout);
-            /* make sure the frame data is writable */
-            ret = av_frame_make_writable(mFrame);
-            if (ret < 0)
-                exit(1);
-            /* prepare a dummy image */
-            unsigned char y_data[mVideoCodecCtx->width * mVideoCodecCtx->height];
-            unsigned char u_data[mVideoCodecCtx->width * mVideoCodecCtx->height / 4];
-            unsigned char v_data[mVideoCodecCtx->width * mVideoCodecCtx->height / 4];
-            /* Y */
-            ret = fread(y_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height, fp_YUV);
-            if (ret <= 0)
-            // break;
+            ret = avcodec_receive_packet(mVideoCodecCtx, mPacket);
+            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                break;
+            else if (ret < 0)
             {
-                printf("End Of File\n");
+                fprintf(stderr, "Error during encoding\n");
                 break;
             }
-            memcpy(mFrame->data[0], y_data, mVideoCodecCtx->width * mVideoCodecCtx->height);
 
-            /* Cb and Cr */
-            fread(u_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height / 4, fp_YUV);
-            memcpy(mFrame->data[1], u_data, mVideoCodecCtx->width * mVideoCodecCtx->height / 4);
+            /* Handle Encoded Packet Data */
+            printf("Write packet %3" PRId64 " (size=%5d)\n", mPacket->pts, mPacket->size);
+            fwrite(mPacket->data, 1, mPacket->size, fp_out);
 
-            fread(v_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height / 4, fp_YUV);
-            memcpy(mFrame->data[2], v_data, mVideoCodecCtx->width * mVideoCodecCtx->height / 4);
-
-            mFrame->pts = i;
-            /* encode the image */
-            encode(mVideoCodecCtx, mFrame, mPacket, f);
+            av_packet_unref(mPacket);
         }
-        /* ret = av_read_frame(format_ctx, packet); //read the next frame
-        if (ret >= 0 && packet->stream_index == video_stream_index)
-        {
-            ret = avcodec_send_packet(codec_ctx, packet); // decode
-            if (ret < 0)
-            {
-                fprintf(stderr, "Error sending a packet for decoding: %d\n", ret);
-                av_packet_unref(packet);
-                continue;
-            }
-            while (ret >= 0)
-            {
-                ret = avcodec_receive_frame(codec_ctx, frame);
-                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-                {
-                    av_packet_unref(packet);
-                    break;
-                }
-                else if (ret < 0)
-                {
-                    fprintf(stderr, "Error during decoding: %d\n", ret);
-                    av_packet_unref(packet);
-                    break;
-                }
-            }
-        } */
-        av_packet_unref(mPacket);
     }
 
     /* Release resources */
