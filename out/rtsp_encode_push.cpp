@@ -8,17 +8,21 @@ extern "C"
 #include <libavutil/time.h>
 }
 
-static void PrepareIntputFrame(AVCodecContext *mVideoCodecCtx, AVFrame *mFrame, FILE *infile)
+static int PrepareIntputFrame(AVCodecContext *mVideoCodecCtx, AVFrame *mFrame, FILE *infile)
 {
-    int ret;
+    int ret = 0;
     static int enc_count = 0;
 
-#if 1 //prepare input yuv
+    //prepare input yuv
     fflush(stdout);
     /* make sure the frame data is writable */
     ret = av_frame_make_writable(mFrame);
     if (ret < 0)
-        throw std::runtime_error("Error: fail to av_frame_make_writable");
+    {
+        // throw std::runtime_error("Error: fail to av_frame_make_writable");
+        fprintf(stderr, "Error: fail to av_frame_make_writable\n");
+        return -1;
+    }
     /* prepare a dummy image */
     unsigned char y_data[mVideoCodecCtx->width * mVideoCodecCtx->height];
     unsigned char u_data[mVideoCodecCtx->width * mVideoCodecCtx->height / 4];
@@ -26,7 +30,11 @@ static void PrepareIntputFrame(AVCodecContext *mVideoCodecCtx, AVFrame *mFrame, 
     /* Y */
     ret = fread(y_data, 1, mVideoCodecCtx->width * mVideoCodecCtx->height, infile);
     if (ret <= 0)
-        throw std::runtime_error("End Of File");
+    {
+        // throw std::runtime_error("End Of File");
+        fprintf(stderr, "End Of File\n");
+        return -1;
+    }
 
     memcpy(mFrame->data[0], y_data, mVideoCodecCtx->width * mVideoCodecCtx->height);
 
@@ -39,39 +47,15 @@ static void PrepareIntputFrame(AVCodecContext *mVideoCodecCtx, AVFrame *mFrame, 
 
     mFrame->pts = enc_count++;
     /* Now Ready to encode the image */
-    return;
-#endif
 
-#if 0
-    /* send the frame to the encoder */
-    if (mFrame)
-        printf("Send frame %3" PRId64 "\n", mFrame->pts);
-    ret = avcodec_send_frame(mVideoCodecCtx, mFrame);
-    if (ret < 0)
-        throw std::runtime_error("Error sending a frame for encoding\n");
-
-    while (ret >= 0)
-    {
-        ret = avcodec_receive_packet(mVideoCodecCtx, mPacket);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            break;
-        else if (ret < 0)
-        {
-            fprintf(stderr, "Error during encoding\n");
-            break;
-        }
-        printf("Write packet %3" PRId64 " (size=%5d)\n", mPacket->pts, mPacket->size);
-        fwrite(mPacket->data, 1, mPacket->size, outfile);
-        av_packet_unref(mPacket);
-    }
-#endif
+    return ret;
 }
 
 int main(int argc, char *argv[])
 {
     if (argc <= 3)
     {
-        std::cout << argv[0] << " <input file> <codec name> <rtsp://xxxx/xxx>" << std::endl;
+        std::cout << argv[0] << " <input YUVfile> <codec name> <output url>" << std::endl;
         exit(-1);
     }
 
@@ -214,7 +198,7 @@ int main(int argc, char *argv[])
         }
     }
 
-#if 1
+#if 1 // Important~ From avformat_new_stream() * When muxing, should be called by the user before avformat_write_header().
     /* Write file header */
     ret = avformat_write_header(mFormatCtx, NULL);
     if (ret < 0)
@@ -240,7 +224,8 @@ int main(int argc, char *argv[])
     while (1)
     {
         /* Read from local yuv file */
-        PrepareIntputFrame(mVideoCodecCtx, mFrame, fp_YUV);
+        if (PrepareIntputFrame(mVideoCodecCtx, mFrame, fp_YUV) < 0)
+            break;
 
         /* send the frame to the encoder */
         if (mFrame)
@@ -316,6 +301,23 @@ int main(int argc, char *argv[])
     }
 
     /* Release resources */
+    if (mFrame)
+        av_frame_free(&mFrame);
+    if (mPacket)
+        av_packet_free(&mPacket);
+    if (mVideoCodecCtx)
+        avcodec_free_context(&mVideoCodecCtx);
+    if (mFormatCtx)
+    {
+        if (!(mFormatCtx->oformat->flags & AVFMT_NOFILE))
+            avio_close(mFormatCtx->pb);
+        avformat_free_context(mFormatCtx);
+    }
+
+    if (fp_YUV)
+        fclose(fp_YUV);
+    if (fp_out)
+        fclose(fp_out);
 
     return 0;
 }
