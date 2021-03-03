@@ -1,0 +1,40 @@
+
+FROM nvcr.io/nvidia/l4t-base:r32.5.0 as builder
+
+RUN apt-get update && \
+    apt-get install -y wget build-essential openssl libssl-dev && \
+    apt-get install -y libv4l-dev zlib1g-dev libx264-dev && \
+    apt-get install -y git pkg-config ca-certificates
+
+# install cmake
+RUN cd ~ && \
+    mkdir cmake && \
+    wget -qO- http://192.168.100.12/artifactory/others/cmake-3.19.0.tar.gz | tar --transform 's/^dbt2-0.37.50.3/dbt2/' -xvz -C cmake --strip-components 1 && \
+    cd ~/cmake && \
+    ./configure && \
+    make -j8 install && \
+    cd ~ && \
+    rm -r cmake
+
+# install nvmpi for jetston-ffmpeg
+WORKDIR /root/
+RUN git clone https://github.com/jocover/jetson-ffmpeg.git && \
+    cd jetson-ffmpeg  && \
+    mkdir build  && \
+    cd build  && \
+    cmake ..  && \
+    make  && \
+    make install  && \
+    ldconfig
+
+COPY ./jetson-ffmpeg-r4.2.patch /root/
+
+# apply patch and build ffmpeg
+WORKDIR /root/
+RUN git clone https://github.com/FFmpeg/FFmpeg.git -b release/4.2 --depth=1 && \
+    cd FFmpeg  && \
+    git apply /root/jetson-ffmpeg-r4.2.patch  && \
+    ./configure --enable-shared --disable-static --enable-gpl --enable-libx264 --enable-nvmpi --enable-nvv4l2dec --enable-libv4l2 \
+    --extra-libs='-L/usr/lib/aarch64-linux-gnu/tegra -lnvbuf_utils' \
+    --extra-cflags='-I /usr/src/jetson_multimedia_api/include/' \
+    --prefix="/usr/" && make -j8
