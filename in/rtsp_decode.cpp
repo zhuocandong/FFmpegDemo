@@ -6,39 +6,9 @@ extern "C"
 #include <libavformat/avformat.h>
 }
 
-#define SAVE_YUV420
+#define SAVE_YUV
 
-/* Copy from ffmpeg/fftools/ffmpeg_opt.c */
-static AVCodec *find_codec_or_die(const char *name, enum AVMediaType type, int encoder)
-{
-    const AVCodecDescriptor *desc;
-    const char *codec_string = encoder ? "encoder" : "decoder";
-    AVCodec *codec;
-
-    codec = encoder ? avcodec_find_encoder_by_name(name) : avcodec_find_decoder_by_name(name);
-
-    if (!codec && (desc = avcodec_descriptor_get_by_name(name)))
-    {
-        codec = encoder ? avcodec_find_encoder(desc->id) : avcodec_find_decoder(desc->id);
-        if (codec)
-            av_log(NULL, AV_LOG_VERBOSE, "Matched %s '%s' for codec '%s'.\n",
-                   codec_string, codec->name, desc->name);
-    }
-
-    if (!codec)
-    {
-        av_log(NULL, AV_LOG_FATAL, "Unknown %s '%s'\n", codec_string, name);
-        return NULL;
-    }
-    if (codec->type != type)
-    {
-        av_log(NULL, AV_LOG_FATAL, "Invalid %s type '%s'\n", codec_string, name);
-        return NULL;
-    }
-    return codec;
-}
-
-#ifdef SAVE_YUV420
+#ifdef SAVE_YUV
 int Save_Yuv(AVCodecContext *codec_ctx, AVFrame *frame, FILE *fp_YUV)
 {
     long src_width = 0, src_height = 0;
@@ -58,22 +28,42 @@ int Save_Yuv(AVCodecContext *codec_ctx, AVFrame *frame, FILE *fp_YUV)
 
     s_size = dst_width * dst_height;
 
-    int j = 0;
-    for (int i = 0; i < dst_height; i++)
+    if(AV_PIX_FMT_YUV420P == codec_ctx->pix_fmt)
     {
-        memcpy(yuv_data + i * dst_width,
-               frame->data[0] + i * frame->linesize[0],
-               dst_width);
-    }
+        int j = 0;
+        for (int i = 0; i < dst_height; i++)
+        {
+            memcpy(yuv_data + i * dst_width,
+                frame->data[0] + i * frame->linesize[0],
+                dst_width);
+        }
 
-    for (int i = 0; i < dst_height / 2; i++)
+        for (int i = 0; i < dst_height / 2; i++)
+        {
+            memcpy(yuv_data + s_size + i * dst_width / 2,
+                frame->data[1] + i * frame->linesize[1],
+                dst_width / 2);
+            memcpy(yuv_data + s_size + s_size / 4 + i * dst_width / 2,
+                frame->data[2] + i * frame->linesize[2],
+                dst_width / 2);
+        }
+    }
+    else if(AV_PIX_FMT_NV12 == codec_ctx->pix_fmt)
     {
-        memcpy(yuv_data + s_size + i * dst_width / 2,
-               frame->data[1] + i * frame->linesize[1],
-               dst_width / 2);
-        memcpy(yuv_data + s_size + s_size / 4 + i * dst_width / 2,
-               frame->data[2] + i * frame->linesize[2],
-               dst_width / 2);
+        int j = 0;
+        for (int i = 0; i < dst_height; i++)
+        {
+            memcpy(yuv_data + i * dst_width,
+                frame->data[0] + i * frame->linesize[0],
+                dst_width);
+        }
+
+        for (int i = 0; i < dst_height / 2; i++)
+        {
+            memcpy(yuv_data + s_size + i * dst_width,
+                frame->data[1] + i * frame->linesize[1],
+                dst_width);
+        }
     }
     fwrite(yuv_data, 1, num_bytes, fp_YUV);
 }
@@ -127,8 +117,8 @@ int main(int argc, char *argv[])
     }
 
 #ifndef USE_DEFAULT_DECODER
-    /*h264_nvv4l2dec*/
-    const char *codec_name = argv[2]; //"h264_nvv4l2dec";
+    /*h264_cuvid*/
+    const char *codec_name = argv[2]; //"h264_cuvid";
     // AVCodec *codec = find_codec_or_die(codec_name, AVMEDIA_TYPE_VIDEO, 0);
     AVCodec *codec = avcodec_find_decoder_by_name(codec_name);
     if (!codec)
@@ -161,13 +151,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-// #ifndef USE_DEFAULT_DECODER
-    /* fill nvv4l2dec width/height/pixel_format*/
-    avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
-    // codec_ctx->width = codec_ctx->width ? codec_ctx->width : format_ctx->streams[video_stream_index]->codecpar->width;
-    // codec_ctx->height = codec_ctx->height ? codec_ctx->height : format_ctx->streams[video_stream_index]->codecpar->height;
-    // codec_ctx->pix_fmt = (codec_ctx->pix_fmt >= 0) ? codec_ctx->pix_fmt : (AVPixelFormat)format_ctx->streams[video_stream_index]->codecpar->format;
-// #endif
+    /* Not Needed in x86 */
+    // avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
+
 
     AVPacket *packet = av_packet_alloc();
     if (!packet)
@@ -183,7 +169,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-#ifdef SAVE_YUV420
+#ifdef SAVE_YUV
     FILE *fp_YUV;
     if ((fp_YUV = fopen("pic.yuv", "wb")) == NULL) //YUV save filename
         return 0;
@@ -216,7 +202,7 @@ int main(int argc, char *argv[])
                     av_packet_unref(packet);
                     break;
                 }
-#ifdef SAVE_YUV420
+#ifdef SAVE_YUV
                 printf("saving frame %3d\n", codec_ctx->frame_number);
                 fflush(stdout);
                 Save_Yuv(codec_ctx, frame, fp_YUV);

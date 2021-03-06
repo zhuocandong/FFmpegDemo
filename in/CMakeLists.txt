@@ -25,6 +25,5 @@ target_link_libraries(decode
     avcodec
     avformat
     avutil
-    v4l2
 )
 
