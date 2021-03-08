@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /* Not Needed in x86 */
-    // avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
+    /* Not Needed in x86, but mDstWidth and mDstHeight need it*/
+    avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
 
 
     AVPacket *packet = av_packet_alloc();
