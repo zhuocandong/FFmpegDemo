@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     int mVideoStreamIndex = -1;
     int ret;
 
-    // av_register_all();
+    av_register_all();
     avformat_network_init();
 
     /* ================== Encoder Init ================== */
