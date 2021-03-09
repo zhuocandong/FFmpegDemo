@@ -26,7 +26,18 @@ target_link_libraries(encode
     avutil
 )
 
-# add_executable(out rtsp_out.cpp)
+add_executable(push leixh_push.cpp)
+
+target_include_directories(push
+    PRIVATE
+)
+
+target_link_libraries(push
+    avcodec
+    avformat
+    avutil
+)
+
 add_executable(out rtsp_encode_push.cpp)
 
 target_include_directories(out
