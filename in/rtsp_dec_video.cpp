@@ -28,41 +28,41 @@ int Save_Yuv(AVCodecContext *codec_ctx, AVFrame *frame, FILE *fp_YUV)
 
     s_size = dst_width * dst_height;
 
-    if(AV_PIX_FMT_YUV420P == codec_ctx->pix_fmt)
+    if (AV_PIX_FMT_YUV420P == codec_ctx->pix_fmt)
     {
         int j = 0;
         for (int i = 0; i < dst_height; i++)
         {
             memcpy(yuv_data + i * dst_width,
-                frame->data[0] + i * frame->linesize[0],
-                dst_width);
+                   frame->data[0] + i * frame->linesize[0],
+                   dst_width);
         }
 
         for (int i = 0; i < dst_height / 2; i++)
         {
             memcpy(yuv_data + s_size + i * dst_width / 2,
-                frame->data[1] + i * frame->linesize[1],
-                dst_width / 2);
+                   frame->data[1] + i * frame->linesize[1],
+                   dst_width / 2);
             memcpy(yuv_data + s_size + s_size / 4 + i * dst_width / 2,
-                frame->data[2] + i * frame->linesize[2],
-                dst_width / 2);
+                   frame->data[2] + i * frame->linesize[2],
+                   dst_width / 2);
         }
     }
-    else if(AV_PIX_FMT_NV12 == codec_ctx->pix_fmt)
+    else if (AV_PIX_FMT_NV12 == codec_ctx->pix_fmt)
     {
         int j = 0;
         for (int i = 0; i < dst_height; i++)
         {
             memcpy(yuv_data + i * dst_width,
-                frame->data[0] + i * frame->linesize[0],
-                dst_width);
+                   frame->data[0] + i * frame->linesize[0],
+                   dst_width);
         }
 
         for (int i = 0; i < dst_height / 2; i++)
         {
             memcpy(yuv_data + s_size + i * dst_width,
-                frame->data[1] + i * frame->linesize[1],
-                dst_width);
+                   frame->data[1] + i * frame->linesize[1],
+                   dst_width);
         }
     }
     fwrite(yuv_data, 1, num_bytes, fp_YUV);
@@ -73,7 +73,8 @@ int main(int argc, char *argv[])
 {
     if (argc <= 2)
     {
-        std::cout << argv[0] << " <rtsp://xxxx/xxx> " << "<codec_name>" << std::endl;
+        std::cout << argv[0] << " <rtsp://xxxx/xxx> "
+                  << "<codec_name>" << std::endl;
         exit(-1);
     }
     av_register_all();
@@ -154,7 +155,6 @@ int main(int argc, char *argv[])
     /* Not Needed in x86, but mDstWidth and mDstHeight need it*/
     avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
 
-
     AVPacket *packet = av_packet_alloc();
     if (!packet)
     {
@@ -176,10 +176,9 @@ int main(int argc, char *argv[])
 #endif
 
     /*Decode Packet To Frame*/
-    while (1)
+    while (ret = av_read_frame(format_ctx, packet) >= 0) //read the next frame
     {
-        ret = av_read_frame(format_ctx, packet); //read the next frame
-        if (ret >= 0 && packet->stream_index == video_stream_index)
+        if (packet->stream_index == video_stream_index)
         {
             ret = avcodec_send_packet(codec_ctx, packet); // decode
             if (ret < 0)

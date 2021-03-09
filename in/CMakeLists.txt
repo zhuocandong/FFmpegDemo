@@ -14,16 +14,16 @@ set(CMAKE_CXX_FLAGS "-g")
 # find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
 # find_library(AVUTIL_LIBRARY avutil)
 
-add_executable(decode rtsp_decode.cpp)
+add_executable(video_dec rtsp_dec_video.cpp)
 
 add_executable(audio_dec rtsp_dec_audio.cpp)
 
-target_include_directories(decode
+target_include_directories(video_dec
     PRIVATE
 
 )
 
-target_link_libraries(decode
+target_link_libraries(video_dec
     avcodec
     avformat
     avutil
