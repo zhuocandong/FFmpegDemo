@@ -16,7 +16,7 @@ set(CMAKE_CXX_FLAGS "-g")
 
 add_executable(decode rtsp_decode.cpp)
 
-add_executable(audio audio.cpp)
+add_executable(audio_dec rtsp_dec_audio.cpp)
 
 target_include_directories(decode
     PRIVATE
@@ -29,12 +29,12 @@ target_link_libraries(decode
     avutil
 )
 
-target_include_directories(audio
+target_include_directories(audio_dec
     PRIVATE
 
 )
 
-target_link_libraries(audio
+target_link_libraries(audio_dec
     avcodec
     avformat
     avutil
