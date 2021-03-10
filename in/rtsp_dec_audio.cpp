@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     AVSampleFormat outFormat = AV_SAMPLE_FMT_S16;
     // 输入采样率
     int inSampleRate = ad_codec_ctx->sample_rate ? ad_codec_ctx->sample_rate : (format_ctx->streams[audio_stream_index]->codecpar->sample_rate);
-    // 输出采样率（若输入采样率高于输出采样率，会有音质损失）
+    // 输出采样率
     int outSampleRate = 44100;
     // 输入声道布局
     uint64_t in_ch_layout = ad_codec_ctx->channel_layout ? ad_codec_ctx->channel_layout : (format_ctx->streams[audio_stream_index]->codecpar->channel_layout);
@@ -198,8 +198,8 @@ int main(int argc, char **argv)
                 // 将每一帧数据转换成pcm
                 swr_convert(swrContext, &out_buffer, 2 * 44100,
                             (const uint8_t **)frame->data, frame->nb_samples);
-                // 获取实际的缓存大小
-                int out_buffer_size = av_samples_get_buffer_size(NULL, outChannelCount, frame->nb_samples, outFormat, 1);
+                // 获取实际的缓存大小（补充：第三个参数不应该是输入的样本数，而是重采样的样本数）
+                int out_buffer_size = av_samples_get_buffer_size(NULL, outChannelCount, frame->nb_samples * outSampleRate / inSampleRate, outFormat, 1);
 
                 printf("index:%5d\t pts:%lld\t packet size:%d\n", index++, packet->pts, packet->size);
                 // 写入文件
@@ -245,6 +245,7 @@ int main(int argc, char **argv)
     /* Release resources */
     av_frame_free(&frame);
     av_packet_free(&packet);
+    swr_free(&swrContext);
     // avcodec_free_context(&ad_codec_ctx); // unless avcodec_alloc_context3() is used
     avformat_close_input(&format_ctx);
 
