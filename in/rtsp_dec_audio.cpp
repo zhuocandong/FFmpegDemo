@@ -76,7 +76,9 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    // AVCodecContext *ad_codec_ctx = avcodec_alloc_context3(ad_codec); // 这种申请方式 + avcodec_parameters_to_context接口无法获取到完整的音频信息
+    /* use avcodec_alloc_context3() and avcodec_parameters_to_context() couldn't get all complete information, Error will be reported when decoding aac or mp4 */
+    // AVCodecContext *ad_codec_ctx = avcodec_alloc_context3(ad_codec);
+
     AVCodecContext *ad_codec_ctx = format_ctx->streams[audio_stream_index]->codec;
     if (!ad_codec_ctx)
     {
@@ -243,7 +245,7 @@ int main(int argc, char **argv)
     /* Release resources */
     av_frame_free(&frame);
     av_packet_free(&packet);
-    // avcodec_free_context(&ad_codec_ctx); // if use avcodec_alloc_context3()
+    // avcodec_free_context(&ad_codec_ctx); // unless avcodec_alloc_context3() is used
     avformat_close_input(&format_ctx);
 
     return 0;

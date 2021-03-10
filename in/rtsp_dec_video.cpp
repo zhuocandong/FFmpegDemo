@@ -138,7 +138,10 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    AVCodecContext *codec_ctx = avcodec_alloc_context3(codec);
+    /* use avcodec_alloc_context3() and avcodec_parameters_to_context() couldn't get all complete information, Error will be reported when decoding mp4 */
+    // AVCodecContext *codec_ctx = avcodec_alloc_context3(codec);
+
+    AVCodecContext *codec_ctx = format_ctx->streams[video_stream_index]->codec;
     if (!codec_ctx)
     {
         fprintf(stderr, "Could not allocate video codec context\n");
@@ -152,8 +155,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /* Not Needed in x86, but mDstWidth and mDstHeight need it*/
-    avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
+    // avcodec_parameters_to_context(codec_ctx, format_ctx->streams[video_stream_index]->codecpar);
 
     AVPacket *packet = av_packet_alloc();
     if (!packet)
@@ -214,7 +216,7 @@ int main(int argc, char *argv[])
     /* Release resources */
     av_frame_free(&frame);
     av_packet_free(&packet);
-    avcodec_free_context(&codec_ctx);
+    // avcodec_free_context(&codec_ctx); // unless avcodec_alloc_context3() is used
     avformat_close_input(&format_ctx);
 
     return 0;
