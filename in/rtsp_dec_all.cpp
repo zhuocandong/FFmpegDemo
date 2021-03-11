@@ -109,9 +109,9 @@ int main(int argc, char *argv[])
         else if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
         {
             audio_stream_index = i;
-            fprintf(stdout, "type of the encoded data: %d, sample_rate:%d, channels:%d, bits per sample:%d, sample format:%d \n",
+            fprintf(stdout, "type of the encoded data: %d, sample_rate:%d, channels:%d, bits per sample:%d, frame_size:%d, sample format:%d \n",
                     stream->codecpar->codec_id, stream->codecpar->sample_rate, stream->codecpar->channels,
-                    stream->codecpar->bits_per_coded_sample, stream->codecpar->format);
+                    stream->codecpar->bits_per_coded_sample, stream->codecpar->frame_size, stream->codecpar->format);
         }
     }
 
