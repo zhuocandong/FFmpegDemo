@@ -17,6 +17,19 @@ target_link_libraries(video_enc
     avutil
 )
 
+add_executable(audio_enc ffmpeg_enc_audio.cpp)
+
+target_include_directories(audio_enc
+    PRIVATE
+)
+
+target_link_libraries(audio_enc
+    avcodec
+    avformat
+    avutil
+    swresample
+)
+
 add_executable(push leixh_push.cpp)
 
 target_include_directories(push
