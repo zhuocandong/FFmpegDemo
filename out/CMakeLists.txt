@@ -5,22 +5,13 @@ project(rtsp_enc_out)
 # set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-g")
 
-# find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
-# find_library(AVCODEC_LIBRARY avcodec)
+add_executable(video_enc ffmpeg_enc_video.c)
 
-# find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
-# find_library(AVFORMAT_LIBRARY avformat)
-
-# find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
-# find_library(AVUTIL_LIBRARY avutil)
-
-add_executable(encode ffmpeg_enc.c)
-
-target_include_directories(encode
+target_include_directories(video_enc
     PRIVATE
 )
 
-target_link_libraries(encode
+target_link_libraries(video_enc
     avcodec
     avformat
     avutil
