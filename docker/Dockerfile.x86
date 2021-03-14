@@ -1,0 +1,75 @@
+
+FROM nvidia/cuda:11.1-cudnn8-devel-ubuntu18.04 as builder
+
+RUN rm /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list && \
+    apt-get update && \
+    apt-get install -y wget build-essential openssl libssl-dev && \
+    apt-get install -y libv4l-dev zlib1g-dev libx264-dev libfdk-aac-dev && \
+    apt-get install -y git pkg-config ca-certificates && \
+    apt-get install -y vim yasm
+
+# install cmake
+RUN cd ~ && \
+    mkdir cmake && \
+    wget -qO- http://192.168.100.12/artifactory/others/cmake-3.19.0.tar.gz | tar --transform 's/^dbt2-0.37.50.3/dbt2/' -xvz -C cmake --strip-components 1 && \
+    cd ~/cmake && \
+    ./configure && \
+    make -j8 install && \
+    cd ~ && \
+    rm -r cmake
+
+# instal FFmpeg
+RUN cd ~ && \
+    git clone https://github.com/FFmpeg/FFmpeg.git -b release/4.2 --depth=1 && \
+    cd FFmpeg && \
+    ./configure --prefix="/usr/" --enable-shared --disable-static --enable-gpl --enable-libx264 --enable-nonfree --enable-libfdk-aac && \
+    make -j16 && make install && \
+    cd ~
+
+# RUN cd /vipower-s-engine && \
+#     mkdir docker-build && \
+#     cd docker-build && \
+#     cmake -DWITH_SDKPROFILING=OFF -DWITH_DOCKER=ON .. && \
+#     make -j8
+
+# FROM nvidia/cuda:11.1-cudnn8-runtime-ubuntu18.04 as vipower-s-engine
+
+# RUN rm /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list && \
+#     apt-get update && \
+#     apt-get install -y wget build-essential openssl libssl-dev && \
+#     apt-get install -y libv4l-dev libudev-dev libasound-dev && \
+#     apt-get install -y unzip 
+
+# RUN echo "deb http://security.ubuntu.com/ubuntu xenial-security main"  >> \
+#     /etc/apt/sources.list && apt-get update && apt-get install -y libjpeg-dev \
+#     libtiff-dev libjasper-dev libpng-dev libtbb-dev libsodium-dev \
+#     libavcodec-dev libavformat-dev libswscale-dev \
+#     libdc1394-22-dev
+
+# COPY --from=builder /vipower-s-engine/third_party/TensorRT/lib/ /lib
+# COPY --from=builder /vipower-s-engine/third_party/opencv/lib /lib
+# COPY --from=builder /vipower-s-engine/third_party/DeckLink/lib /lib
+
+# COPY --from=builder /vipower-s-engine/docker-build/src/cuda/trilinear/libtrilinear.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/cuda/resize/libresize.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/cuda/einsum/libeinsum.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/cuda/yuv2rgb/libyuv2rgb.so /lib
+
+# COPY --from=builder /vipower-s-engine/docker-build/src/algo/lapar2_5/liblapar2_5.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/algo/denoising/libdenoising.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/algo/low_light_enhance/liblow_light_enhance.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/algo/rgbv1/librgbv1.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/algo/rgb2stage/librgb2stage.so /lib
+
+# COPY --from=builder /vipower-s-engine/docker-build/src/in/mwcap/libmwcap.so /lib
+
+# COPY --from=builder /vipower-s-engine/docker-build/src/out/decklink/libdecklink.so /lib
+# COPY --from=builder /vipower-s-engine/docker-build/src/out/fb/libframebuffer.so /lib
+
+# COPY --from=builder /vipower-s-engine/docker-build/app/vipower-s-engine /vipower-s-engine
+
+# COPY --from=builder /vipower-s-engine/models/smartmore/ /smartmore/
+
+# COPY --from=builder /vipower-s-engine/conf/release/config.json /config.json
+
+# ENTRYPOINT ["/vipower-s-engine"]
