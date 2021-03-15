@@ -53,3 +53,16 @@ target_link_libraries(out
     avformat
     avutil
 )
+
+add_executable(all_out rtsp_encode_push_all.cpp)
+
+target_include_directories(all_out
+    PRIVATE
+)
+
+target_link_libraries(all_out
+    avcodec
+    avformat
+    avutil
+    swresample
+)
