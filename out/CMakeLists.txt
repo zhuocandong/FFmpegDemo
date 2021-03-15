@@ -17,13 +17,13 @@ target_link_libraries(video_enc
     avutil
 )
 
-add_executable(audio_enc ffmpeg_enc_audio.cpp)
+add_executable(audio_out rtsp_encode_push_audio.cpp)
 
-target_include_directories(audio_enc
+target_include_directories(audio_out
     PRIVATE
 )
 
-target_link_libraries(audio_enc
+target_link_libraries(audio_out
     avcodec
     avformat
     avutil
@@ -42,13 +42,13 @@ target_link_libraries(push
     avutil
 )
 
-add_executable(out rtsp_encode_push.cpp)
+add_executable(video_out rtsp_encode_push_video.cpp)
 
-target_include_directories(out
+target_include_directories(video_out
     PRIVATE
 )
 
-target_link_libraries(out
+target_link_libraries(video_out
     avcodec
     avformat
     avutil

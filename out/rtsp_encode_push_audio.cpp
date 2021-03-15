@@ -317,8 +317,6 @@ int main(int argc, char *argv[])
         fclose(fp_out);
 
     return 0;
-
-    return 0;
 }
 
 static void get_adts_header(AVCodecContext *ctx, uint8_t *adts_header, int aac_length)
