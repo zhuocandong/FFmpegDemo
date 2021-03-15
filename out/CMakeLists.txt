@@ -17,13 +17,13 @@ target_link_libraries(video_enc
     avutil
 )
 
-add_executable(audio_out rtsp_encode_push_audio.cpp)
+add_executable(audio_enc ffmpeg_enc_audio.cpp)
 
-target_include_directories(audio_out
+target_include_directories(audio_enc
     PRIVATE
 )
 
-target_link_libraries(audio_out
+target_link_libraries(audio_enc
     avcodec
     avformat
     avutil
@@ -52,6 +52,19 @@ target_link_libraries(video_out
     avcodec
     avformat
     avutil
+)
+
+add_executable(audio_out rtsp_encode_push_audio.cpp)
+
+target_include_directories(audio_out
+    PRIVATE
+)
+
+target_link_libraries(audio_out
+    avcodec
+    avformat
+    avutil
+    swresample
 )
 
 add_executable(all_out rtsp_encode_push_all.cpp)
