@@ -80,7 +80,13 @@ int main(int argc, char *argv[])
 
     AVFormatContext *format_ctx = avformat_alloc_context();
 
-    int ret = avformat_open_input(&format_ctx, url, nullptr, nullptr);
+    AVDictionary *options = NULL;
+    av_dict_set(&options, "rtsp_transport", "tcp", 0);
+    // av_dict_set(&options, "stimeout", "20000000", 0);
+    // av_dict_set(&options, "max_delay", "500000", 0);
+    // av_dict_set(&options, "buffer_size", "1024000", 0);
+
+    int ret = avformat_open_input(&format_ctx, url, nullptr, &options);
     if (ret != 0)
     {
         fprintf(stderr, "Fail to open url: %s, return value: %d\n", url, ret);

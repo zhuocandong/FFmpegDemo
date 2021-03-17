@@ -27,8 +27,14 @@ int main(int argc, char **argv)
 
     AVFormatContext *format_ctx = avformat_alloc_context(); // 定义封装结构体
 
+    AVDictionary *options = NULL;
+    av_dict_set(&options, "rtsp_transport", "tcp", 0); // 以tcp方式打开
+    // av_dict_set(&options, "stimeout", "20000000", 0); // 设置超时断开连接时间
+    // av_dict_set(&options, "max_delay", "500000", 0);
+    // av_dict_set(&options, "buffer_size", "1024000", 0);
+
     /* 将输入流媒体流链接为封装结构体的句柄，将url句柄挂载至format_ctx结构里，之后ffmpeg即可对format_ctx进行操作 */
-    int ret = avformat_open_input(&format_ctx, url, nullptr, nullptr);
+    int ret = avformat_open_input(&format_ctx, url, nullptr, &options);
     if (ret != 0)
     {
         fprintf(stderr, "Fail to open url: %s, return value: %d\n", url, ret);
